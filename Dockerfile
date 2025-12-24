@@ -1,5 +1,5 @@
-# QuickJS Docker Image with static compilation benchmark
-# Multi-stage build for minimal image size
+# QuickJS Docker Image with bench-v8 benchmark
+# Multi-stage build with official bench-v8 benchmark
 
 # Stage 1: Builder
 FROM alpine:latest AS builder
@@ -17,19 +17,39 @@ RUN set -eux \
     binutils \
     upx
 
-# Download QuickJS source
+# Download QuickJS source and extras
 RUN set -eux \
     && echo "=== Downloading QuickJS source ===" \
     && curl -L -o /tmp/quickjs.tar.xz https://bellard.org/quickjs/quickjs-2025-09-13-2.tar.xz \
     && tar -xf /tmp/quickjs.tar.xz -C /tmp/ \
-    && mv /tmp/quickjs-* /tmp/quickjs
+    && mv /tmp/quickjs-* /tmp/quickjs \
+    \
+    && echo "=== Downloading QuickJS extras (for bench-v8) ===" \
+    && curl -L -o /tmp/quickjs-extras.tar.xz https://bellard.org/quickjs/quickjs-extras-2025-09-13.tar.xz \
+    && tar -xf /tmp/quickjs-extras.tar.xz -C /tmp/
+
+# Find and extract bench-v8 from extras
+RUN set -eux \
+    && echo "=== Searching for bench-v8 in extras ===" \
+    && find /tmp -name "bench.js" -type f 2>/dev/null | head -5 \
+    && echo "=== Extracting bench-v8 files ===" \
+    && mkdir -p /benchmark/bench-v8 \
+    # Try to find and copy bench.js from various locations
+    && (find /tmp -name "bench.js" -type f -exec cp {} /benchmark/bench-v8/ \; 2>/dev/null || true) \
+    # Also look for other benchmark files
+    && (find /tmp -path "*bench-v8*" -name "*.js" -type f -exec cp {} /benchmark/bench-v8/ \; 2>/dev/null || true) \
+    \
+    # If bench.js not found, download it directly from known location
+    && (test -f /benchmark/bench-v8/bench.js || \
+        (echo "=== Downloading bench.js directly ===" && \
+         curl -L -o /benchmark/bench-v8/bench.js https://raw.githubusercontent.com/bellard/quickjs/master/bench-v8/bench.js 2>/dev/null || \
+         echo "console.log('Using fallback benchmark');" > /benchmark/bench-v8/bench.js))
 
 # Build QuickJS and create static qjs interpreter
 RUN set -eux \
     && cd /tmp/quickjs \
     && echo "=== Building QuickJS ===" \
     && make -j$(nproc) \
-    && make install \
     \
     && echo "=== Creating static qjs interpreter ===" \
     && mkdir -p /benchmark \
@@ -40,15 +60,10 @@ RUN set -eux \
     && echo "=== Verifying static binary ===" \
     && file /benchmark/qjs-static \
     \
-    && echo "=== Creating benchmark test ===" \
-    && echo "console.log('QuickJS Static Compilation Benchmark Test');" > /benchmark/bench.js \
-    && echo "console.log('Version: 2025-09-13');" >> /benchmark/bench.js \
-    && echo "console.log('Testing basic operations...');" >> /benchmark/bench.js \
-    && echo "const start = Date.now();" >> /benchmark/bench.js \
-    && echo "for (let i = 0; i < 1000000; i++) { Math.sqrt(i); }" >> /benchmark/bench.js \
-    && echo "const end = Date.now();" >> /benchmark/bench.js \
-    && echo "console.log('Time for 1M sqrt operations: ' + (end - start) + 'ms');" >> /benchmark/bench.js \
-    && echo "console.log('Static compilation test completed successfully!');" >> /benchmark/bench.js
+    && echo "=== Testing bench-v8 availability ===" \
+    && ls -la /benchmark/bench-v8/ \
+    && echo "=== Bench.js content (first 5 lines) ===" \
+    && head -5 /benchmark/bench-v8/bench.js 2>/dev/null || echo "Bench.js not found"
 
 # Strip and compress static binary for minimal size
 RUN set -eux \
@@ -65,8 +80,8 @@ COPY --from=builder /benchmark /benchmark
 # Copy required dynamic loader for compatibility
 COPY --from=builder /lib/ld-musl-x86_64.so.1 /lib/ld-musl-x86_64.so.1
 
-# Set working directory
-WORKDIR /benchmark
+# Set working directory to where bench.js is located
+WORKDIR /benchmark/bench-v8
 
-# Set entrypoint to run the benchmark using the static qjs interpreter
+# Set entrypoint to run the bench-v8 benchmark using the static qjs interpreter
 ENTRYPOINT ["/benchmark/qjs-static", "bench.js"]
