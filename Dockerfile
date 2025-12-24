@@ -44,7 +44,7 @@ RUN set -eux \
     \
     && echo "=== Testing QuickJS installation ===" \
     && echo "qjs version:" && qjs --help 2>&1 | head -1 \
-    && echo "qjsc version:" && qjsc --version \
+    && echo "qjsc version:" && qjsc --help 2>&1 | head -1 \
     \
     && echo "=== Creating static qjs interpreter ===" \
     && mkdir -p /benchmark
