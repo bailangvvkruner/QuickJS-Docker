@@ -32,7 +32,8 @@ RUN set -eux \
     && echo "=== Downloading QuickJS extras (contains bench-v8) ===" \
     && curl -L -o /tmp/quickjs-extras.tar.xz https://bellard.org/quickjs/quickjs-extras-2025-09-13.tar.xz \
     && tar -xf /tmp/quickjs-extras.tar.xz -C /tmp/ \
-    && mv /tmp/quickjs-extras-* /tmp/quickjs-extras
+    # Use find command to handle the directory rename more robustly
+    && find /tmp -maxdepth 1 -type d -name "quickjs-extras-*" -exec mv {} /tmp/quickjs-extras \;
 
 # Build QuickJS and create static qjs interpreter
 RUN set -eux \
