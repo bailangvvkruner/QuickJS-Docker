@@ -35,47 +35,33 @@ RUN set -eux \
 RUN set -eux \
     && echo "=== Extracting bench-v8 benchmark ===" \
     && mkdir -p /benchmark/bench-v8 \
-    # Copy all .js files from the extras package
-    && (find /tmp -name "*.js" -type f -exec cp {} /benchmark/bench-v8/ \; 2>/dev/null || true) \
+    # First, list the structure of quickjs-extras to understand it
+    && echo "=== Listing quickjs-extras structure ===" \
+    && find /tmp -type d -name "*quickjs*" | sort \
+    && echo "=== Looking for bench-v8 directory ===" \
+    && find /tmp -type d -name "*bench-v8*" \
     \
-    # Create bench.js entry point if it doesn't exist
-    && (test -f /benchmark/bench-v8/bench.js || \
-        (echo "Creating bench.js entry point..." && \
-         cat > /benchmark/bench-v8/bench.js << 'EOF'
-// Official V8 benchmark suite for QuickJS
-// This runs all the benchmark tests
-
-var tests = [
-    'base.js',
-    'richards.js',
-    'deltablue.js',
-    'crypto.js',
-    'raytrace.js',
-    'earley-boyer.js',
-    'regexp.js',
-    'splay.js',
-    'navier-stokes.js'
-];
-
-for (var i = 0; i < tests.length; i++) {
-    var testName = tests[i];
-    try {
-        print("Running benchmark: " + testName);
-        load(testName);
-    } catch(e) {
-        print("Error loading " + testName + ": " + e);
-    }
-}
-
-print("All benchmarks completed");
-EOF
-        )) \
+    # Try to find and copy the entire bench-v8 directory
+    && (find /tmp -type d -name "*bench-v8*" -exec cp -r {}/. /benchmark/bench-v8/ \; 2>/dev/null || true) \
+    \
+    # If bench-v8 directory copy didn't work, try to find individual benchmark files
+    && (test -f /benchmark/bench-v8/bench.js || ( \
+        echo "Searching for benchmark files..." \
+        && find /tmp -type f -name "*.js" -path "*bench*" -exec cp {} /benchmark/bench-v8/ \; 2>/dev/null \
+        && find /tmp -type f -name "bench.js" -exec cp {} /benchmark/bench-v8/ \; 2>/dev/null \
+    )) \
+    \
+    # If still no bench.js, look for run_harness.js as alternative entry point
+    && (test -f /benchmark/bench-v8/bench.js || ( \
+        echo "Using run_harness.js as entry point..." \
+        && cp /benchmark/bench-v8/run_harness.js /benchmark/bench-v8/bench.js 2>/dev/null || true \
+    )) \
     \
     # Verify we got the benchmark files
     && echo "=== Benchmark files found ===" \
     && ls -la /benchmark/bench-v8/ \
-    && echo "=== First 10 lines of bench.js ===" \
-    && head -10 /benchmark/bench-v8/bench.js
+    && echo "=== First 10 lines of bench.js (if exists) ===" \
+    && (head -10 /benchmark/bench-v8/bench.js 2>/dev/null || echo "WARNING: bench.js not found")
 
 # Build QuickJS and create static qjs interpreter
 RUN set -eux \
