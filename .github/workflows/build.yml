@@ -18,8 +18,8 @@ permissions:
   actions: read
 
 env:
-  DOCKER_REPO: bailangvvking/go-wrk
-  IMAGE_NAME: go-wrk
+  DOCKER_REPO: bailangvvking/quickjs
+  IMAGE_NAME: quickjs
   IMAGE_TAG: latest
 
 jobs:
