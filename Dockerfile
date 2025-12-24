@@ -15,7 +15,8 @@ RUN set -eux \
     tar \
     xz \
     binutils \
-    upx
+    upx \
+    file
 
 # Download QuickJS source and extras
 RUN set -eux \
