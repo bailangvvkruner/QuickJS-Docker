@@ -35,18 +35,47 @@ RUN set -eux \
 RUN set -eux \
     && echo "=== Extracting bench-v8 benchmark ===" \
     && mkdir -p /benchmark/bench-v8 \
-    # Find and copy bench-v8 files
-    && (find /tmp -path "*bench-v8*" -name "*.js" -type f -exec cp {} /benchmark/bench-v8/ \; 2>/dev/null || true) \
+    # Copy all .js files from the extras package
+    && (find /tmp -name "*.js" -type f -exec cp {} /benchmark/bench-v8/ \; 2>/dev/null || true) \
     \
-    # If bench.js not found in bench-v8 directory, look for it elsewhere
+    # Create bench.js entry point if it doesn't exist
     && (test -f /benchmark/bench-v8/bench.js || \
-        (find /tmp -name "bench.js" -type f -exec cp {} /benchmark/bench-v8/ \; 2>/dev/null || true)) \
+        (echo "Creating bench.js entry point..." && \
+         cat > /benchmark/bench-v8/bench.js << 'EOF'
+// Official V8 benchmark suite for QuickJS
+// This runs all the benchmark tests
+
+var tests = [
+    'base.js',
+    'richards.js',
+    'deltablue.js',
+    'crypto.js',
+    'raytrace.js',
+    'earley-boyer.js',
+    'regexp.js',
+    'splay.js',
+    'navier-stokes.js'
+];
+
+for (var i = 0; i < tests.length; i++) {
+    var testName = tests[i];
+    try {
+        print("Running benchmark: " + testName);
+        load(testName);
+    } catch(e) {
+        print("Error loading " + testName + ": " + e);
+    }
+}
+
+print("All benchmarks completed");
+EOF
+        )) \
     \
     # Verify we got the benchmark files
     && echo "=== Benchmark files found ===" \
     && ls -la /benchmark/bench-v8/ \
     && echo "=== First 10 lines of bench.js ===" \
-    && (head -10 /benchmark/bench-v8/bench.js 2>/dev/null || echo "WARNING: bench.js not found or empty")
+    && head -10 /benchmark/bench-v8/bench.js
 
 # Build QuickJS and create static qjs interpreter
 RUN set -eux \
