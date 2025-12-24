@@ -2,7 +2,7 @@
 QuickJS JavaScript引擎 Docker
 
 翻译官网
-https://bellard.org/
+[[https://bellard.org/](https://bellard.org/quickjs/)](https://bellard.org/quickjs/)
 
 # QuickJS JavaScript引擎
 新闻
@@ -55,4 +55,4 @@ QuickJS嵌入了以下C库，可在其他项目中使用：
 QuickJS根据MIT许可证发布。
 除非另有说明，QuickJS源代码版权归Fabrice Bellard和Charlie Gordon所有。
 
-Fabrice Bellard - https://bellard.org/
+Fabrice Bellard - [https://bellard.org/](https://bellard.org/quickjs/)
