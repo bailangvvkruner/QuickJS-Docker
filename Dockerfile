@@ -15,8 +15,7 @@ RUN set -eux \
     tar \
     xz \
     binutils \
-    upx \
-    file
+    upx
 
 # Download QuickJS source and extras
 RUN set -eux \
@@ -62,6 +61,7 @@ RUN set -eux \
     && mv qjs /benchmark/qjs-static \
     \
     && echo "=== Verifying static binary ===" \
+    && apk add --no-cache file \
     && file /benchmark/qjs-static \
     \
     && echo "=== Testing benchmark with static binary ===" \
