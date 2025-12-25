@@ -20,7 +20,7 @@ RUN set -eux \
     && cd /tmp/quickjs-* \
     && make -j$(nproc) $FILENAME LDFLAGS="-static" \
     && strip --strip-all $FILENAME \
-    && (upx --best $FILENAME 2>/dev/null || echo "upx compression skipped") \
+    && (upx --best --lzma $FILENAME 2>/dev/null || echo "upx compression skipped") \
         && mv $FILENAME /qjs-static \
     \
     && curl -L https://bellard.org/quickjs/quickjs-extras-2025-09-13.tar.xz | tar -xJf - -C /tmp \
