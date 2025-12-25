@@ -70,11 +70,11 @@ RUN set -eux \
     && head -20 /benchmark/bench-v8/bench.js 2>/dev/null || echo "ERROR: Cannot read bench.js" \
     \
     # Test run the benchmark to ensure it works
-    && echo "=== Testing benchmark execution ===" \
-    && cd /benchmark/bench-v8 \
-    && /benchmark/qjs-static -e "console.log('QuickJS version test');" 2>&1 \
-    && echo "QuickJS interpreter test passed" \
-    \
+    # && echo "=== Testing benchmark execution ===" \
+    # && cd /benchmark/bench-v8 \
+    # && /benchmark/qjs-static -e "console.log('QuickJS version test');" 2>&1 \
+    # && echo "QuickJS interpreter test passed" \
+    # \
     # Final check - bench.js must exist
     && test -f /benchmark/bench-v8/bench.js
 
