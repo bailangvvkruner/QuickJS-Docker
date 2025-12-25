@@ -35,39 +35,47 @@ RUN set -eux \
 RUN set -eux \
     && echo "=== Extracting bench-v8 benchmark ===" \
     && mkdir -p /benchmark/bench-v8 \
-    # Direct approach: use the path found in build logs
-    && echo "=== Looking for bench-v8 directory ===" \
-    && find /tmp -type d -name "*bench-v8*" 2>/dev/null \
-    && echo "=== Copying bench-v8 files ===" \
-    # Method 1: Try direct copy from known path (from build logs)
-    && (cp -r /tmp/quickjs-2025-09-13/tests/bench-v8/* /benchmark/bench-v8/ 2>/dev/null || \
-        echo "Method 1 failed, trying alternative..." \
-    ) \
-    # Method 2: Use find to copy bench-v8 directory
-    && (find /tmp -type d -name "*bench-v8*" -exec cp -r {}/. /benchmark/bench-v8/ \; 2>/dev/null || \
-        echo "Method 2 failed, trying individual files..." \
-    ) \
-    # Method 3: Copy individual benchmark JS files
-    && (find /tmp -type f -name "*.js" -path "*bench*" -exec cp {} /benchmark/bench-v8/ \; 2>/dev/null || \
-        echo "Method 3 failed..." \
-    ) \
-    # Method 4: Ensure bench.js exists (copy run_harness.js as fallback)
-    && (test -f /benchmark/bench-v8/bench.js || ( \
-        echo "bench.js not found, looking for alternatives..." \
-        && find /tmp -type f -name "bench.js" -exec cp {} /benchmark/bench-v8/ \; 2>/dev/null \
-        && (test -f /benchmark/bench-v8/bench.js || ( \
-            echo "Using run_harness.js as bench.js..." \
-            && cp /benchmark/bench-v8/run_harness.js /benchmark/bench-v8/bench.js 2>/dev/null || true \
-        )) \
-    )) \
+    # First, find and copy the entire bench-v8 directory
+    && echo "=== Searching for bench-v8 directory ===" \
+    && BENCH_DIR=$(find /tmp -type d -name "*bench-v8*" 2>/dev/null | head -1) \
+    && if [ -n "$BENCH_DIR" ]; then \
+        echo "Found bench-v8 directory at: $BENCH_DIR" \
+        && echo "=== Listing source directory contents ===" \
+        && ls -la "$BENCH_DIR"/ \
+        && echo "=== Copying entire bench-v8 directory ===" \
+        && cp -r "$BENCH_DIR"/* /benchmark/bench-v8/ 2>/dev/null || echo "Some files may have failed to copy"; \
+    else \
+        echo "ERROR: Could not find bench-v8 directory" \
+        && find /tmp -type d -name "*quickjs*" | sort \
+        && find /tmp -type d | grep -i bench \
+        && exit 1; \
+    fi \
     \
     # Verify we got the benchmark files
-    && echo "=== Benchmark files found ===" \
+    && echo "=== Benchmark files copied ===" \
     && ls -la /benchmark/bench-v8/ \
-    && echo "=== First 10 lines of bench.js (if exists) ===" \
-    && (head -10 /benchmark/bench-v8/bench.js 2>/dev/null || echo "WARNING: bench.js not found") \
+    && echo "=== Checking essential files ===" \
+    && (test -f /benchmark/bench-v8/bench.js && echo "✓ bench.js exists" || echo "✗ bench.js missing") \
+    && (test -f /benchmark/bench-v8/base.js && echo "✓ base.js exists" || echo "✗ base.js missing") \
+    && (test -f /benchmark/bench-v8/run_harness.js && echo "✓ run_harness.js exists" || echo "✗ run_harness.js missing") \
     \
-    # No fallback - fail if bench.js is not found
+    # Ensure bench.js exists (use run_harness.js if needed)
+    && if [ ! -f /benchmark/bench-v8/bench.js ] && [ -f /benchmark/bench-v8/run_harness.js ]; then \
+        echo "Using run_harness.js as bench.js..." \
+        && cp /benchmark/bench-v8/run_harness.js /benchmark/bench-v8/bench.js; \
+    fi \
+    \
+    # Show bench.js content for debugging
+    && echo "=== First 20 lines of bench.js ===" \
+    && head -20 /benchmark/bench-v8/bench.js 2>/dev/null || echo "ERROR: Cannot read bench.js" \
+    \
+    # Test run the benchmark to ensure it works
+    && echo "=== Testing benchmark execution ===" \
+    && cd /benchmark/bench-v8 \
+    && /benchmark/qjs-static -e "console.log('QuickJS version test');" 2>&1 \
+    && echo "QuickJS interpreter test passed" \
+    \
+    # Final check - bench.js must exist
     && test -f /benchmark/bench-v8/bench.js
 
 # Build QuickJS and create static qjs interpreter
@@ -107,7 +115,7 @@ FROM busybox:musl
 COPY --from=builder /benchmark /benchmark
 
 # Copy required dynamic loader for compatibility
-COPY --from=builder /lib/ld-musl-x86_64.so.1 /lib/ld-musl-x86_64.so.1
+# COPY --from=builder /lib/ld-musl-x86_64.so.1 /lib/ld-musl-x86_64.so.1
 
 # Set working directory to where bench.js is located
 WORKDIR /benchmark/bench-v8
