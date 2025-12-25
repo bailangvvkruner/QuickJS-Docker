@@ -10,9 +10,9 @@ RUN curl -L https://bellard.org/quickjs/quickjs-extras-2025-09-13.tar.xz | tar -
     mkdir /bench && cp -r /tmp/quickjs-*/tests/bench-v8/* /bench/
 
 # 运行阶段 - 最小化
-# FROM scratch
+FROM scratch
 # FROM alpine:latest
-FROM busybox:musl
+# FROM busybox:musl
 COPY --from=builder /qjs-static /qjs
 COPY --from=builder /bench/ /bench/
 WORKDIR /bench
