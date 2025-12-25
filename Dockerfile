@@ -115,7 +115,7 @@ FROM busybox:musl
 COPY --from=builder /benchmark /benchmark
 
 # Copy required dynamic loader for compatibility
-# COPY --from=builder /lib/ld-musl-x86_64.so.1 /lib/ld-musl-x86_64.so.1
+COPY --from=builder /lib/ld-musl-x86_64.so.1 /lib/ld-musl-x86_64.so.1
 
 # Set working directory to where bench.js is located
 WORKDIR /benchmark/bench-v8
