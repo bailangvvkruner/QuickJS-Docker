@@ -13,7 +13,7 @@ RUN set -eux \
         binutils \
     # 尝试安装 upx，如果不可用则继续（某些架构可能不支持）
     \
-    && apk add --no-cache --no-scripts --virtual .build-deps \
+    && apk add --no-cache --no-scripts --virtual .upx-deps \
         upx 2>/dev/null || echo "upx not available, skipping compression" \
     \
     && curl -L https://bellard.org/quickjs/quickjs-2025-09-13-2.tar.xz | tar -xJf - -C /tmp \
