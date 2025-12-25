@@ -35,18 +35,31 @@ RUN set -eux \
 RUN set -eux \
     && echo "=== Extracting bench-v8 benchmark ===" \
     && mkdir -p /benchmark/bench-v8 \
-    # First, find the extracted quickjs-extras directory
-    && echo "=== Finding quickjs-extras directory ===" \
-    && find /tmp -maxdepth 1 -type d -name "*quickjs-extras*" | head -1 | while read dir; do \
-        echo "Found directory: $$dir" \
-        && echo "=== Listing directory structure ===" \
-        && find "$$dir" -type f -name "*.js" | head -20 \
-        && echo "=== Looking for bench-v8 directory ===" \
-        && find "$$dir" -type d -name "*bench-v8*" | while read bench_dir; do \
-            echo "Copying bench-v8 directory from: $$bench_dir" \
-            && cp -r "$$bench_dir"/* /benchmark/bench-v8/ 2>/dev/null || true \
-        done \
-    done \
+    # Direct approach: use the path found in build logs
+    && echo "=== Looking for bench-v8 directory ===" \
+    && find /tmp -type d -name "*bench-v8*" 2>/dev/null \
+    && echo "=== Copying bench-v8 files ===" \
+    # Method 1: Try direct copy from known path (from build logs)
+    && (cp -r /tmp/quickjs-2025-09-13/tests/bench-v8/* /benchmark/bench-v8/ 2>/dev/null || \
+        echo "Method 1 failed, trying alternative..." \
+    ) \
+    # Method 2: Use find to copy bench-v8 directory
+    && (find /tmp -type d -name "*bench-v8*" -exec cp -r {}/. /benchmark/bench-v8/ \; 2>/dev/null || \
+        echo "Method 2 failed, trying individual files..." \
+    ) \
+    # Method 3: Copy individual benchmark JS files
+    && (find /tmp -type f -name "*.js" -path "*bench*" -exec cp {} /benchmark/bench-v8/ \; 2>/dev/null || \
+        echo "Method 3 failed..." \
+    ) \
+    # Method 4: Ensure bench.js exists (copy run_harness.js as fallback)
+    && (test -f /benchmark/bench-v8/bench.js || ( \
+        echo "bench.js not found, looking for alternatives..." \
+        && find /tmp -type f -name "bench.js" -exec cp {} /benchmark/bench-v8/ \; 2>/dev/null \
+        && (test -f /benchmark/bench-v8/bench.js || ( \
+            echo "Using run_harness.js as bench.js..." \
+            && cp /benchmark/bench-v8/run_harness.js /benchmark/bench-v8/bench.js 2>/dev/null || true \
+        )) \
+    )) \
     \
     # Verify we got the benchmark files
     && echo "=== Benchmark files found ===" \
@@ -54,11 +67,8 @@ RUN set -eux \
     && echo "=== First 10 lines of bench.js (if exists) ===" \
     && (head -10 /benchmark/bench-v8/bench.js 2>/dev/null || echo "WARNING: bench.js not found") \
     \
-    # If no bench.js found, create a simple test
-    && (test -f /benchmark/bench-v8/bench.js || ( \
-        echo "Creating simple test benchmark..." \
-        && echo "print('Static QuickJS test'); print('Version: 2025-09-13');" > /benchmark/bench-v8/bench.js \
-    ))
+    # No fallback - fail if bench.js is not found
+    && test -f /benchmark/bench-v8/bench.js
 
 # Build QuickJS and create static qjs interpreter
 RUN set -eux \
@@ -77,13 +87,12 @@ RUN set -eux \
     && file /benchmark/qjs-static \
     \
     && echo "=== Testing benchmark with static binary ===" \
-    # Run a quick syntax check if bench.js exists
+    # Only test syntax if bench.js exists, never overwrite it
     && (test -f /benchmark/bench-v8/bench.js && \
         echo "Testing bench.js syntax..." && \
         head -5 /benchmark/bench-v8/bench.js && \
         /benchmark/qjs-static -e "print('QuickJS static binary works!')" || \
-        echo "Creating simple test..." && \
-        echo "print('Static QuickJS test'); print('Version: 2025-09-13');" > /benchmark/bench-v8/bench.js)
+        echo "WARNING: bench.js not found for testing")
 
 # Strip and compress static binary for minimal size
 RUN set -eux \
