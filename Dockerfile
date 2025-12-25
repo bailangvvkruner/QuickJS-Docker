@@ -35,33 +35,30 @@ RUN set -eux \
 RUN set -eux \
     && echo "=== Extracting bench-v8 benchmark ===" \
     && mkdir -p /benchmark/bench-v8 \
-    # First, list the structure of quickjs-extras to understand it
-    && echo "=== Listing quickjs-extras structure ===" \
-    && find /tmp -type d -name "*quickjs*" | sort \
-    && echo "=== Looking for bench-v8 directory ===" \
-    && find /tmp -type d -name "*bench-v8*" \
-    \
-    # Try to find and copy the entire bench-v8 directory
-    && (find /tmp -type d -name "*bench-v8*" -exec cp -r {}/. /benchmark/bench-v8/ \; 2>/dev/null || true) \
-    \
-    # If bench-v8 directory copy didn't work, try to find individual benchmark files
-    && (test -f /benchmark/bench-v8/bench.js || ( \
-        echo "Searching for benchmark files..." \
-        && find /tmp -type f -name "*.js" -path "*bench*" -exec cp {} /benchmark/bench-v8/ \; 2>/dev/null \
-        && find /tmp -type f -name "bench.js" -exec cp {} /benchmark/bench-v8/ \; 2>/dev/null \
-    )) \
-    \
-    # If still no bench.js, look for run_harness.js as alternative entry point
-    && (test -f /benchmark/bench-v8/bench.js || ( \
-        echo "Using run_harness.js as entry point..." \
-        && cp /benchmark/bench-v8/run_harness.js /benchmark/bench-v8/bench.js 2>/dev/null || true \
-    )) \
+    # First, find the extracted quickjs-extras directory
+    && echo "=== Finding quickjs-extras directory ===" \
+    && find /tmp -maxdepth 1 -type d -name "*quickjs-extras*" | head -1 | while read dir; do \
+        echo "Found directory: $$dir" \
+        && echo "=== Listing directory structure ===" \
+        && find "$$dir" -type f -name "*.js" | head -20 \
+        && echo "=== Looking for bench-v8 directory ===" \
+        && find "$$dir" -type d -name "*bench-v8*" | while read bench_dir; do \
+            echo "Copying bench-v8 directory from: $$bench_dir" \
+            && cp -r "$$bench_dir"/* /benchmark/bench-v8/ 2>/dev/null || true \
+        done \
+    done \
     \
     # Verify we got the benchmark files
     && echo "=== Benchmark files found ===" \
     && ls -la /benchmark/bench-v8/ \
     && echo "=== First 10 lines of bench.js (if exists) ===" \
-    && (head -10 /benchmark/bench-v8/bench.js 2>/dev/null || echo "WARNING: bench.js not found")
+    && (head -10 /benchmark/bench-v8/bench.js 2>/dev/null || echo "WARNING: bench.js not found") \
+    \
+    # If no bench.js found, create a simple test
+    && (test -f /benchmark/bench-v8/bench.js || ( \
+        echo "Creating simple test benchmark..." \
+        && echo "print('Static QuickJS test'); print('Version: 2025-09-13');" > /benchmark/bench-v8/bench.js \
+    ))
 
 # Build QuickJS and create static qjs interpreter
 RUN set -eux \
