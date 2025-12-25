@@ -21,10 +21,11 @@ RUN set -eux \
     && make -j$(nproc) $FILENAME LDFLAGS="-static" \
     && strip --strip-all $FILENAME \
     && (upx --best $FILENAME 2>/dev/null || echo "upx compression skipped") \
-    && mv $FILENAME /qjs-static \
+        && mv $FILENAME /qjs-static \
     \
     && curl -L https://bellard.org/quickjs/quickjs-extras-2025-09-13.tar.xz | tar -xJf - -C /tmp \
-    && mkdir /bench && cp -r /tmp/quickjs-*/tests/bench-v8/* /bench/
+    && mkdir /bench \
+        && cp -r /tmp/quickjs-*/tests/bench-v8/* /bench/
 
 # 运行阶段 - 最小化
 FROM scratch
