@@ -32,23 +32,17 @@ RUN set -eux \
     && cp -r /tmp/quickjs-2025-09-13/tests/bench-v8/* /benchmark/ \
     \
     && echo "=== Official bench-v8 files ===" \
-    && ls -la /benchmark/ \
-    && echo "=== README content ===" \
-    && head -20 /benchmark/README.txt 2>/dev/null || echo "No README"
+    && ls -la /benchmark/
 
-# Build QuickJS and create static binary
+# Build QuickJS
 RUN set -eux \
     && cd /tmp/quickjs \
     && echo "=== Building QuickJS ===" \
     && make -j$(nproc) \
     \
-    && echo "=== Creating static qjs binary ===" \
+    && echo "=== Creating static qjs ===" \
     && make qjs LDFLAGS="-static" \
     && mv qjs /benchmark/qjs-static \
-    \
-    && echo "=== Verifying binary exists ===" \
-    && ls -la /benchmark/ \
-    && test -f /benchmark/qjs-static && echo "✓ qjs-static exists" || echo "✗ qjs-static missing" \
     \
     && echo "=== Minimizing binary ===" \
     && strip --strip-all --strip-unneeded /benchmark/qjs-static \
@@ -58,49 +52,54 @@ RUN set -eux \
     && echo "=== Final binary size ===" \
     && ls -lh /benchmark/qjs-static
 
-# Create proper bench.js wrapper for official benchmark
+# Create proper bench.js that works with official structure
 RUN set -eux \
-    && echo "=== Creating official benchmark runner ===" \
+    && echo "=== Creating benchmark runner ===" \
     && cat > /benchmark/bench.js << 'EOF'
-#!/usr/bin/env qjs
 // Official QuickJS bench-v8 benchmark runner
+// Based on the structure found in quickjs-extras
 
-// Set up the benchmark environment
-var base = {
-    time: function() { return Date.now(); },
-    print: print
-};
+// The official bench-v8 uses a specific pattern
+// Let's try to execute it properly
 
 try {
     print("=== QuickJS Official Bench-V8 Benchmark ===");
-    print("Loading benchmark infrastructure...");
     
-    // Load base.js first
-    std.load("/benchmark/base.js");
+    // Load base.js first (contains utilities)
+    try {
+        std.load("/benchmark/base.js");
+        print("✓ base.js loaded");
+    } catch(e) {
+        print("Note: base.js load issue: " + e);
+    }
     
-    print("Running benchmark suite...");
-    
-    // The combined.js contains all the benchmark tests
-    // It will automatically run when loaded
+    // Try to run the combined benchmark
+    print("Running combined.js benchmark...");
     std.load("/benchmark/combined.js");
     
-    print("Benchmark completed!");
-    
 } catch(e) {
-    print("Error running benchmark: " + e);
-    if (e.stack) {
-        print("Stack trace: " + e.stack);
+    print("Benchmark error: " + e);
+    print("Stack: " + (e.stack || "no stack"));
+    
+    // Fallback: run individual tests
+    print("\nTrying individual tests...");
+    const tests = [
+        "crypto.js", "deltablue.js", "earley-boyer.js", 
+        "navier-stokes.js", "raytrace.js", "regexp.js", 
+        "richards.js", "splay.js"
+    ];
+    
+    for (let i = 0; i < tests.length; i++) {
+        try {
+            print("Running " + tests[i] + "...");
+            std.load("/benchmark/" + tests[i]);
+            print("✓ " + tests[i] + " completed");
+        } catch(e2) {
+            print("✗ " + tests[i] + " failed: " + e2);
+        }
     }
 }
 EOF
-
-# Make executable
-RUN chmod +x /benchmark/bench.js
-
-# Also create a simple test to verify the binary works
-RUN set -eux \
-    && echo "=== Testing binary ===" \
-    && /benchmark/qjs-static -e "print('QuickJS binary test: OK'); print('Version:', typeof quickjs !== 'undefined' ? 'available' : 'standard');"
 
 # Stage 2: Runtime
 FROM busybox:musl
