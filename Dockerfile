@@ -4,9 +4,10 @@ FROM alpine:latest AS builder
 RUN set -eux \
     && FILENAME=qjs \
     && apk add --no-cache --no-scripts --virtual .build-deps \
-        make \
-        gcc \
-        musl-dev \
+        # make \
+        # gcc \
+        # musl-dev \
+        build-base \
         curl \
         tar \
         xz \
